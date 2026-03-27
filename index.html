@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>スマエコ甲子園 ダッシュボード v1.0</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --red:    #C8102E;
+  --red2:   #A00C24;
+  --gold:   #D4A017;
+  --gold2:  #F0C040;
+  --choco:  #4A200A;
+  --cream:  #FFF8F0;
+  --warm:   #FDF6EC;
+  --eco:    #2E7D32;
+  --eco2:   #43A047;
+  --text:   #2C1508;
+  --border: rgba(212,160,23,0.22);
+  --card:   rgba(255,255,255,0.85);
+  --shadow: 0 2px 12px rgba(92,45,10,0.10);
+  --cat-choco: #C8102E;
+  --cat-gum:   #D4A017;
+  --cat-candy: #E06010;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html,body { height:100%; overflow:hidden; font-family:'Noto Sans JP',sans-serif; background:var(--warm); color:var(--text); }
+
+/* ===== TOPBAR ===== */
+#topbar {
+  position:fixed; top:0; left:0; right:0; height:50px; z-index:2000;
+  background:linear-gradient(135deg,var(--red) 0%,var(--red2) 100%);
+  display:flex; align-items:center; padding:0 18px; gap:14px;
+  box-shadow:0 2px 16px rgba(200,16,46,0.4);
+}
+.logo-wrap {
+  background:white; border-radius:6px; padding:3px 11px;
+  display:flex; flex-direction:column; align-items:center; line-height:1.1;
+}
+.logo-wrap .big { font-size:14px; font-weight:900; color:var(--red); letter-spacing:0.04em; }
+.logo-wrap .small { font-size:7px; color:var(--choco); letter-spacing:0.1em; font-weight:700; }
+#topbar h1 { color:white; font-size:15px; font-weight:900; letter-spacing:0.04em; flex:1; }
+.top-right { display:flex; align-items:center; gap:12px; }
+.live-badge {
+  display:flex; align-items:center; gap:5px;
+  background:rgba(255,255,255,0.15); border-radius:20px; padding:4px 11px;
+  font-size:11px; color:white; font-weight:700;
+}
+.live-dot { width:7px; height:7px; border-radius:50%; background:#76FF5A; box-shadow:0 0 6px #76FF5A; animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+.clock { font-family:'Orbitron',monospace; font-size:13px; color:var(--gold2); letter-spacing:0.08em; }
+
+/* ===== MAP MODE TOGGLE ===== */
+.mode-toggle {
+  display:flex; gap:2px;
+  background:rgba(255,255,255,0.15); border-radius:8px; padding:3px;
+}
+.mode-btn {
+  padding:4px 12px; border-radius:6px; border:none; cursor:pointer;
+  font-family:'Noto Sans JP',sans-serif; font-size:11px; font-weight:700;
+  color:rgba(255,255,255,0.7); background:transparent; transition:all 0.2s;
+}
+.mode-btn.active { background:white; color:var(--red); }
+
+/* ===== LAYOUT ===== */
+#layout { display:flex; height:100vh; padding-top:50px; }
+
+/* ===== SIDEBAR ===== */
+#sidebar {
+  width:315px; min-width:315px; height:100%;
+  background:var(--warm);
+  border-right:1px solid var(--border);
+  display:flex; flex-direction:column;
+  overflow:hidden;
+  box-shadow:2px 0 12px rgba(92,45,10,0.06);
+}
+
+/* Sidebar header */
+.sb-header {
+  padding:14px 16px 10px;
+  border-bottom:1px solid var(--border);
+  background:linear-gradient(to bottom,#fff8f0,var(--warm));
+}
+.sb-header .label { font-size:10px; font-weight:700; color:rgba(44,21,8,0.4); letter-spacing:0.12em; text-transform:uppercase; margin-bottom:6px; }
+
+/* National totals */
+.national-totals {
+  display:grid; grid-template-columns:1fr 1fr 1fr;
+  gap:8px; margin-bottom:0;
+}
+.nt-card {
+  background:white; border-radius:10px; padding:8px 10px;
+  border:1px solid var(--border); text-align:center;
+}
+.nt-val { font-family:'Orbitron',monospace; font-size:18px; font-weight:700; line-height:1; }
+.nt-val.red { color:var(--red); }
+.nt-val.gold { color:var(--gold); }
+.nt-val.eco { color:var(--eco); }
+.nt-label { font-size:9px; color:rgba(44,21,8,0.4); margin-top:3px; font-weight:700; line-height:1.3; }
+
+/* Tabs */
+.sb-tabs {
+  display:flex; border-bottom:1px solid var(--border);
+  background:white;
+}
+.sb-tab {
+  flex:1; padding:9px 6px; border:none; background:transparent; cursor:pointer;
+  font-family:'Noto Sans JP',sans-serif; font-size:11px; font-weight:700;
+  color:rgba(44,21,8,0.4); border-bottom:2px solid transparent;
+  transition:all 0.2s;
+}
+.sb-tab.active { color:var(--red); border-bottom-color:var(--red); }
+
+/* Tab content */
+.sb-content { flex:1; overflow-y:auto; padding:12px 14px; }
+.sb-content::-webkit-scrollbar { width:4px; }
+.sb-content::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+/* Section */
+.section-title {
+  font-size:10px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase;
+  color:rgba(44,21,8,0.35); margin-bottom:8px; margin-top:14px;
+}
+.section-title:first-child { margin-top:0; }
+
+/* Category bars */
+.cat-bar-wrap { display:flex; flex-direction:column; gap:7px; }
+.cat-row { display:flex; align-items:center; gap:8px; }
+.cat-icon { font-size:16px; width:22px; text-align:center; }
+.cat-info { flex:1; }
+.cat-name { font-size:11px; font-weight:700; color:var(--text); margin-bottom:2px; }
+.cat-track { height:7px; background:rgba(0,0,0,0.07); border-radius:4px; overflow:hidden; }
+.cat-fill { height:100%; border-radius:4px; transition:width 0.8s ease; }
+.cat-nums { font-size:10px; color:rgba(44,21,8,0.45); display:flex; gap:6px; margin-top:2px; }
+.cat-nums span { white-space:nowrap; }
+
+/* Ranking */
+.rank-list { display:flex; flex-direction:column; gap:5px; }
+.rank-item {
+  display:flex; align-items:center; gap:8px;
+  background:white; border-radius:10px; padding:8px 10px;
+  border:1px solid var(--border); cursor:pointer; transition:all 0.15s;
+  position:relative; overflow:hidden;
+}
+.rank-item:hover { border-color:var(--gold); box-shadow:0 2px 8px rgba(212,160,23,0.2); }
+.rank-item.mine { border-color:var(--red); background:linear-gradient(135deg,#fff5f5,white); }
+.rank-medal { font-size:18px; width:22px; text-align:center; }
+.rank-body { flex:1; }
+.rank-school { font-size:12px; font-weight:900; color:var(--text); }
+.rank-pref { font-size:10px; color:rgba(44,21,8,0.4); }
+.rank-right { text-align:right; }
+.rank-val { font-family:'Orbitron',monospace; font-size:14px; font-weight:700; color:var(--choco); }
+.rank-unit { font-size:9px; color:rgba(44,21,8,0.35); }
+.mine-tag {
+  position:absolute; right:0; top:0;
+  background:var(--red); color:white; font-size:8px; font-weight:700;
+  padding:2px 7px; border-radius:0 8px 0 8px;
+}
+
+/* Bin detail (indoor) */
+.bin-cards { display:flex; flex-direction:column; gap:6px; }
+.bin-card {
+  background:white; border-radius:10px; padding:10px 12px;
+  border:1px solid var(--border); cursor:pointer; transition:all 0.15s;
+}
+.bin-card:hover { border-color:var(--gold); }
+.bin-card.selected { border-color:var(--red); box-shadow:0 0 0 2px rgba(200,16,46,0.1); }
+.bin-top { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+.bin-icon { font-size:22px; }
+.bin-name { font-size:12px; font-weight:900; color:var(--text); }
+.bin-floor { font-size:10px; color:rgba(44,21,8,0.4); }
+.bin-metrics { display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; }
+.bin-metric { text-align:center; background:var(--warm); border-radius:6px; padding:4px; }
+.bin-metric-val { font-family:'Orbitron',monospace; font-size:12px; font-weight:700; }
+.bin-metric-val.choco { color:var(--cat-choco); }
+.bin-metric-val.gum   { color:var(--cat-gum); }
+.bin-metric-val.candy { color:var(--cat-candy); }
+.bin-metric-label { font-size:8px; color:rgba(44,21,8,0.4); }
+.fullness-bar { height:5px; background:rgba(0,0,0,0.07); border-radius:3px; overflow:hidden; margin-top:6px; }
+.fullness-fill { height:100%; border-radius:3px; transition:width 0.8s; }
+
+/* Connection tab */
+.conn-status {
+  background:white; border-radius:12px; padding:14px;
+  border:1px solid var(--border); text-align:center; margin-bottom:12px;
+}
+.conn-icon { font-size:36px; margin-bottom:8px; }
+.conn-label { font-size:13px; font-weight:700; color:var(--text); }
+.conn-sub { font-size:11px; color:rgba(44,21,8,0.4); margin-top:4px; }
+.demo-log {
+  background:var(--choco); border-radius:10px; padding:10px 12px;
+  font-family:'Orbitron',monospace; font-size:10px; color:#FFD080;
+  max-height:160px; overflow-y:auto; line-height:1.8;
+}
+.demo-log::-webkit-scrollbar { width:3px; }
+.demo-log::-webkit-scrollbar-thumb { background:rgba(255,208,128,0.3); }
+
+/* ===== MAP AREA ===== */
+#map-area { flex:1; position:relative; }
+#leaflet-map { width:100%; height:100%; }
+
+/* Indoor floor plan */
+#indoor-map {
+  width:100%; height:100%;
+  background:linear-gradient(135deg,#f5ede0,#ede5d8);
+  display:none; position:relative; overflow:auto;
+}
+.floor-container {
+  position:absolute; top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  min-width:600px;
+}
+
+/* Floor tab bar (indoor) */
+#floor-tabs {
+  position:absolute; top:14px; left:50%; transform:translateX(-50%);
+  display:flex; gap:4px; z-index:500;
+  background:white; border-radius:10px; padding:4px; box-shadow:0 2px 12px rgba(0,0,0,0.12);
+}
+.floor-tab {
+  padding:5px 16px; border-radius:7px; border:none; cursor:pointer;
+  font-family:'Noto Sans JP',sans-serif; font-size:12px; font-weight:700;
+  color:rgba(44,21,8,0.4); background:transparent; transition:all 0.2s;
+}
+.floor-tab.active { background:var(--red); color:white; }
+
+/* SVG floor plan */
+#floor-svg { display:block; }
+
+/* Bin markers on floor */
+.bin-marker-group { cursor:pointer; }
+.bin-marker-group:hover .bin-circle { filter:brightness(1.1); }
+
+/* Map popups (Leaflet custom) */
+.custom-popup .leaflet-popup-content-wrapper {
+  border-radius:12px; box-shadow:0 4px 20px rgba(92,45,10,0.18);
+  padding:0; overflow:hidden; border:1px solid var(--border);
+}
+.custom-popup .leaflet-popup-content { margin:0; }
+.popup-inner { padding:12px 14px; min-width:180px; }
+.popup-school { font-size:13px; font-weight:900; color:var(--text); margin-bottom:4px; }
+.popup-pref { font-size:10px; color:rgba(44,21,8,0.4); margin-bottom:10px; }
+.popup-cats { display:flex; flex-direction:column; gap:4px; }
+.popup-cat { display:flex; align-items:center; gap:6px; font-size:11px; }
+.popup-cat-bar { flex:1; height:5px; border-radius:3px; background:rgba(0,0,0,0.06); overflow:hidden; }
+.popup-cat-fill { height:100%; border-radius:3px; }
+.popup-total { margin-top:8px; padding-top:8px; border-top:1px solid var(--border); font-size:11px; color:rgba(44,21,8,0.5); display:flex; justify-content:space-between; }
+.popup-total strong { color:var(--red); font-family:'Orbitron',monospace; font-size:13px; }
+
+/* School detail button */
+.popup-drill {
+  margin-top:8px; width:100%; padding:6px; border:none; border-radius:7px;
+  background:linear-gradient(135deg,var(--red),var(--red2));
+  color:white; font-family:'Noto Sans JP',sans-serif; font-size:11px;
+  font-weight:700; cursor:pointer; letter-spacing:0.04em;
+}
+
+/* Legend */
+#legend {
+  position:absolute; bottom:24px; right:16px; z-index:500;
+  background:white; border-radius:12px; padding:12px 14px;
+  box-shadow:0 2px 12px rgba(92,45,10,0.12); border:1px solid var(--border);
+  min-width:140px;
+}
+.legend-title { font-size:10px; font-weight:700; color:rgba(44,21,8,0.4); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:8px; }
+.legend-row { display:flex; align-items:center; gap:7px; font-size:11px; font-weight:700; color:var(--text); margin-bottom:5px; }
+.legend-dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
+.legend-size { display:flex; align-items:center; gap:5px; margin-top:8px; padding-top:8px; border-top:1px solid var(--border); }
+.legend-circle { border-radius:50%; border:2px solid rgba(200,16,46,0.4); background:rgba(200,16,46,0.12); }
+
+/* Flash animation */
+@keyframes popIn { 0%{transform:scale(0.5);opacity:0} 70%{transform:scale(1.15)} 100%{transform:scale(1);opacity:1} }
+.pop-in { animation:popIn 0.4s ease-out; }
+
+/* Scrollbar global */
+::-webkit-scrollbar { width:5px; }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div id="topbar">
+  <div class="logo-wrap">
+    <span class="big">ガーナ</span>
+    <span class="small">LOTTE</span>
+  </div>
+  <h1>🏆 スマエコ甲子園 ダッシュボード</h1>
+  <div class="top-right">
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="btn-national" onclick="setMode('national')">🗾 全国</button>
+      <button class="mode-btn" id="btn-indoor" onclick="setMode('indoor')">🏫 校内</button>
+    </div>
+    <div class="live-badge"><div class="live-dot"></div>デモ LIVE</div>
+    <div class="clock" id="clock">--:--:--</div>
+  </div>
+</div>
+
+<!-- LAYOUT -->
+<div id="layout">
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="sb-header">
+      <div class="label">全国集計</div>
+      <div class="national-totals">
+        <div class="nt-card">
+          <div class="nt-val red" id="nt-total">0</div>
+          <div class="nt-label">累計回収量<br>(kg)</div>
+        </div>
+        <div class="nt-card">
+          <div class="nt-val gold" id="nt-today">0</div>
+          <div class="nt-label">本日回収<br>(回)</div>
+        </div>
+        <div class="nt-card">
+          <div class="nt-val eco" id="nt-schools">0</div>
+          <div class="nt-label">参加<br>校数</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sb-tabs">
+      <button class="sb-tab active" onclick="switchTab('ranking')">🏆 ランキング</button>
+      <button class="sb-tab" onclick="switchTab('stats')">📊 統計</button>
+      <button class="sb-tab" onclick="switchTab('connect')">📡 接続</button>
+    </div>
+
+    <div class="sb-content" id="tab-ranking">
+      <!-- Category bars -->
+      <div class="section-title">製品カテゴリ別 回収量</div>
+      <div class="cat-bar-wrap" id="cat-bars"></div>
+
+      <div class="section-title" style="margin-top:16px;">全国ランキング TOP10</div>
+      <div class="rank-list" id="rank-list"></div>
+    </div>
+
+    <div class="sb-content" id="tab-stats" style="display:none">
+      <div class="section-title">本日のゴミ箱一覧</div>
+      <div class="bin-cards" id="bin-list"></div>
+    </div>
+
+    <div class="sb-content" id="tab-connect" style="display:none">
+      <div class="conn-status">
+        <div class="conn-icon">📡</div>
+        <div class="conn-label">デモモード 動作中</div>
+        <div class="conn-sub">センサーデータを自動生成中<br>実機接続: Web Serial API（Chrome/Edge）</div>
+      </div>
+      <div class="section-title">センサーログ</div>
+      <div class="demo-log" id="demo-log">待機中...</div>
+    </div>
+  </div>
+
+  <!-- MAP AREA -->
+  <div id="map-area">
+    <!-- National Leaflet map -->
+    <div id="leaflet-map"></div>
+
+    <!-- Indoor floor plan -->
+    <div id="indoor-map">
+      <div id="floor-tabs">
+        <button class="floor-tab active" onclick="showFloor(1)">1F</button>
+        <button class="floor-tab" onclick="showFloor(2)">2F</button>
+        <button class="floor-tab" onclick="showFloor(3)">3F</button>
+      </div>
+      <div class="floor-container">
+        <svg id="floor-svg" width="700" height="480" viewBox="0 0 700 480"></svg>
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div id="legend">
+      <div class="legend-title">製品カテゴリ</div>
+      <div class="legend-row"><div class="legend-dot" style="background:#C8102E"></div>チョコ系 🍫</div>
+      <div class="legend-row"><div class="legend-dot" style="background:#D4A017"></div>ガム系 🟡</div>
+      <div class="legend-row"><div class="legend-dot" style="background:#E06010"></div>飴系 🍬</div>
+      <div class="legend-size" id="legend-size" style="display:flex;align-items:center;gap:8px;font-size:9px;color:rgba(44,21,8,0.4)">
+        <div class="legend-circle" style="width:14px;height:14px"></div>
+        <div class="legend-circle" style="width:22px;height:22px"></div>
+        <div class="legend-circle" style="width:32px;height:32px"></div>
+        <span>回収量</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== DATA ==========
+const SCHOOLS = [
+  { id:1,  name:'○○高等学校',   pref:'静岡県', lat:34.97, lng:138.38, mine:true,  choco:1840, gum:1240, candy:820 },
+  { id:2,  name:'桜丘高等学校', pref:'東京都', lat:35.72, lng:139.76, mine:false, choco:1620, gum:1050, candy:640 },
+  { id:3,  name:'緑川商業高校', pref:'大阪府', lat:34.69, lng:135.50, mine:false, choco:1380, gum:980,  candy:710 },
+  { id:4,  name:'若松工業高校', pref:'福岡県', lat:33.59, lng:130.42, mine:false, choco:1210, gum:820,  candy:590 },
+  { id:5,  name:'海星学院高校', pref:'神奈川', lat:35.45, lng:139.64, mine:false, choco:1100, gum:740,  candy:480 },
+  { id:6,  name:'北星高等学校', pref:'北海道', lat:43.06, lng:141.35, mine:false, choco:980,  gum:620,  candy:410 },
+  { id:7,  name:'仙台第三高校', pref:'宮城県', lat:38.27, lng:140.87, mine:false, choco:870,  gum:560,  candy:390 },
+  { id:8,  name:'金沢泉丘高校', pref:'石川県', lat:36.56, lng:136.66, mine:false, choco:790,  gum:510,  candy:340 },
+  { id:9,  name:'広島皆実高校', pref:'広島県', lat:34.39, lng:132.46, mine:false, choco:720,  gum:480,  candy:310 },
+  { id:10, name:'那覇西高校',   pref:'沖縄県', lat:26.21, lng:127.68, mine:false, choco:640,  gum:430,  candy:280 },
+];
+
+const BINS = [
+  { id:'B01', floor:1, loc:'1F 昇降口',   cat:'choco', emoji:'🍫', weight:1240, count:87,  fullness:72 },
+  { id:'B02', floor:1, loc:'1F 食堂前',   cat:'gum',   emoji:'🟡', weight:890,  count:63,  fullness:45 },
+  { id:'B03', floor:1, loc:'1F 購買前',   cat:'candy', emoji:'🍬', weight:560,  count:41,  fullness:88 },
+  { id:'B04', floor:2, loc:'2F 廊下（南）', cat:'choco', emoji:'🍫', weight:980,  count:71,  fullness:60 },
+  { id:'B05', floor:2, loc:'2F 廊下（北）', cat:'gum',   emoji:'🟡', weight:640,  count:48,  fullness:33 },
+  { id:'B06', floor:2, loc:'2F 特別教室前', cat:'candy', emoji:'🍬', weight:420,  count:32,  fullness:55 },
+  { id:'B07', floor:3, loc:'3F 廊下',     cat:'choco', emoji:'🍫', weight:760,  count:54,  fullness:41 },
+  { id:'B08', floor:3, loc:'3F 職員室前', cat:'gum',   emoji:'🟡', weight:380,  count:29,  fullness:28 },
+];
+
+const CAT_COLORS = { choco:'#C8102E', gum:'#D4A017', candy:'#E06010' };
+const CAT_NAMES  = { choco:'チョコ系 🍫', gum:'ガム系 🟡', candy:'飴系 🍬' };
+
+let currentMode = 'national';
+let currentFloor = 1;
+let currentTab = 'ranking';
+let selectedBin = null;
+let leafletMap, markers = {};
+let logLines = [];
+
+// Accumulate demo increments
+let demoTotals = { choco:0, gum:0, candy:0 };
+let demoToday = 0;
+
+// ========== CLOCK ==========
+function tick() {
+  const n = new Date();
+  document.getElementById('clock').textContent =
+    [n.getHours(),n.getMinutes(),n.getSeconds()].map(v=>String(v).padStart(2,'0')).join(':');
+}
+setInterval(tick,1000); tick();
+
+// ========== NATIONAL MAP ==========
+function initLeaflet() {
+  leafletMap = L.map('leaflet-map', {
+    center:[36.5,137.5], zoom:6,
+    zoomControl:true,
+    attributionControl:true,
+  });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution:'© OpenStreetMap contributors',
+    maxZoom:18,
+  }).addTo(leafletMap);
+
+  SCHOOLS.forEach(s => placeSchoolMarker(s));
+}
+
+function schoolTotal(s) { return s.choco + s.gum + s.candy; }
+
+function markerRadius(s) {
+  const max = Math.max(...SCHOOLS.map(schoolTotal));
+  return 14 + (schoolTotal(s) / max) * 28;
+}
+
+function placeSchoolMarker(s) {
+  const r = markerRadius(s);
+  const total = schoolTotal(s);
+  const pct = { choco: s.choco/total, gum: s.gum/total, candy: s.candy/total };
+
+  // Pie-like SVG circle (simplified: largest category color + ring)
+  const dominant = Object.keys(pct).sort((a,b)=>pct[b]-pct[a])[0];
+  const color = CAT_COLORS[dominant];
+  const border = s.mine ? '#FFFFFF' : color;
+
+  const html = `
+    <div style="
+      width:${r*2}px; height:${r*2}px;
+      background:${color}DD;
+      border:${s.mine?'3px solid white':'2px solid '+color+'99'};
+      border-radius:50%;
+      display:flex; align-items:center; justify-content:center;
+      box-shadow:0 2px 8px ${color}66, ${s.mine?'0 0 0 3px rgba(200,16,46,0.3)':''};
+      font-family:'Orbitron',monospace;
+      font-size:${r>24?11:9}px; font-weight:700; color:white;
+      cursor:pointer;
+      transition:all 0.2s;
+    ">${Math.round(total/10)/100}kg</div>
+  `;
+
+  const icon = L.divIcon({ html, className:'', iconSize:[r*2,r*2], iconAnchor:[r,r] });
+  const m = L.marker([s.lat, s.lng], { icon }).addTo(leafletMap);
+
+  m.on('click', () => openSchoolPopup(s, m));
+  markers[s.id] = m;
+}
+
+function openSchoolPopup(s, marker) {
+  const total = schoolTotal(s);
+  const maxCat = Math.max(s.choco,s.gum,s.candy);
+  const popup = L.popup({ className:'custom-popup', maxWidth:220 })
+    .setLatLng([s.lat, s.lng])
+    .setContent(`
+      <div class="popup-inner">
+        <div class="popup-school">${s.mine?'🏫 (自校) ':''}${s.name}</div>
+        <div class="popup-pref">${s.pref}</div>
+        <div class="popup-cats">
+          ${['choco','gum','candy'].map(c=>`
+            <div class="popup-cat">
+              <span style="font-size:10px;width:50px;">${CAT_NAMES[c]}</span>
+              <div class="popup-cat-bar">
+                <div class="popup-cat-fill" style="width:${(s[c]/maxCat*100).toFixed(0)}%;background:${CAT_COLORS[c]};height:100%;border-radius:3px;"></div>
+              </div>
+              <span style="font-size:10px;font-weight:700;color:${CAT_COLORS[c]};width:38px;text-align:right">${s[c]}g</span>
+            </div>
+          `).join('')}
+        </div>
+        <div class="popup-total">
+          <span>累計回収量</span>
+          <strong>${(total/1000).toFixed(2)}kg</strong>
+        </div>
+        ${s.mine ? `<button class="popup-drill" onclick="setMode('indoor')">🏫 校内マップを見る →</button>` : ''}
+      </div>
+    `).openOn(leafletMap);
+}
+
+// ========== INDOOR FLOOR PLAN ==========
+// Floor layouts: rooms as rectangles, bins as markers
+const FLOOR_LAYOUTS = {
+  1: {
+    rooms: [
+      { x:60,  y:60,  w:580, h:360, fill:'#F5EDE0', label:'' },           // 外枠
+      { x:80,  y:80,  w:540, h:320, fill:'#EDE5D5', label:'' },           // 内壁
+      { x:100, y:100, w:160, h:120, fill:'#FFF8F0', label:'昇降口', fs:13 },
+      { x:280, y:100, w:140, h:120, fill:'#FFF8F0', label:'事務室', fs:12 },
+      { x:440, y:100, w:180, h:120, fill:'#FFF8F0', label:'校長室', fs:12 },
+      { x:100, y:240, w:240, h:140, fill:'#FFF8F0', label:'食堂',   fs:14 },
+      { x:360, y:240, w:120, h:140, fill:'#FFF8F0', label:'購買',   fs:12 },
+      { x:500, y:240, w:120, h:140, fill:'#FFF8F0', label:'倉庫',   fs:11 },
+      // corridors
+      { x:260, y:100, w:20,  h:320, fill:'#D9CCBC', label:'' },
+      { x:100, y:220, w:540, h:20,  fill:'#D9CCBC', label:'' },
+    ],
+    bins: [
+      { id:'B01', x:200, y:185, cat:'choco' },
+      { id:'B02', x:310, y:280, cat:'gum' },
+      { id:'B03', x:400, y:280, cat:'candy' },
+    ]
+  },
+  2: {
+    rooms: [
+      { x:60,  y:60,  w:580, h:360, fill:'#EAE0D5', label:'' },
+      { x:80,  y:80,  w:540, h:320, fill:'#E0D5C8', label:'' },
+      { x:100, y:100, w:120, h:110, fill:'#FFF8F0', label:'2-A', fs:13 },
+      { x:240, y:100, w:120, h:110, fill:'#FFF8F0', label:'2-B', fs:13 },
+      { x:380, y:100, w:120, h:110, fill:'#FFF8F0', label:'2-C', fs:13 },
+      { x:520, y:100, w:100, h:110, fill:'#FFF8F0', label:'特別教室', fs:10 },
+      { x:100, y:240, w:120, h:110, fill:'#FFF8F0', label:'3-A', fs:13 },
+      { x:240, y:240, w:120, h:110, fill:'#FFF8F0', label:'3-B', fs:13 },
+      { x:380, y:240, w:120, h:110, fill:'#FFF8F0', label:'3-C', fs:13 },
+      { x:520, y:240, w:100, h:110, fill:'#FFF8F0', label:'多目的室', fs:10 },
+      { x:100, y:210, w:540, h:30,  fill:'#C8BAA8', label:'' },
+    ],
+    bins: [
+      { id:'B04', x:220, y:225, cat:'choco' },
+      { id:'B05', x:450, y:225, cat:'gum' },
+      { id:'B06', x:560, y:290, cat:'candy' },
+    ]
+  },
+  3: {
+    rooms: [
+      { x:60,  y:60,  w:580, h:360, fill:'#E5DDD5', label:'' },
+      { x:80,  y:80,  w:540, h:320, fill:'#DDD5C8', label:'' },
+      { x:100, y:100, w:120, h:110, fill:'#FFF8F0', label:'理科室', fs:12 },
+      { x:240, y:100, w:120, h:110, fill:'#FFF8F0', label:'音楽室', fs:12 },
+      { x:380, y:100, w:120, h:110, fill:'#FFF8F0', label:'美術室', fs:12 },
+      { x:520, y:100, w:100, h:110, fill:'#FFF8F0', label:'職員室', fs:11 },
+      { x:100, y:240, w:160, h:110, fill:'#FFF8F0', label:'図書室', fs:12 },
+      { x:280, y:240, w:200, h:110, fill:'#FFF8F0', label:'コンピュータ室', fs:10 },
+      { x:500, y:240, w:120, h:110, fill:'#FFF8F0', label:'会議室', fs:11 },
+      { x:100, y:210, w:540, h:30,  fill:'#C0B4A4', label:'' },
+    ],
+    bins: [
+      { id:'B07', x:300, y:225, cat:'choco' },
+      { id:'B08', x:560, y:155, cat:'gum' },
+    ]
+  }
+};
+
+function renderFloor(floor) {
+  const layout = FLOOR_LAYOUTS[floor];
+  const svg = document.getElementById('floor-svg');
+
+  let html = '';
+
+  // Rooms
+  layout.rooms.forEach(r => {
+    html += `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" rx="6" fill="${r.fill}" stroke="#C8B89A" stroke-width="1.5"/>`;
+    if (r.label) {
+      html += `<text x="${r.x+r.w/2}" y="${r.y+r.h/2+4}" text-anchor="middle" font-size="${r.fs||12}" font-family="Noto Sans JP" fill="rgba(74,32,10,0.5)" font-weight="700">${r.label}</text>`;
+    }
+  });
+
+  // Bin markers
+  layout.bins.forEach(b => {
+    const bin = BINS.find(x => x.id === b.id);
+    if (!bin) return;
+    const color = CAT_COLORS[b.cat];
+    const fullPct = bin.fullness;
+    const isSelected = selectedBin === b.id;
+    const pulse = bin.fullness > 80 ? `<circle cx="${b.x}" cy="${b.y}" r="22" fill="${color}22" class="pop-in">
+      <animate attributeName="r" values="18;26;18" dur="2s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.6;0;0.6" dur="2s" repeatCount="indefinite"/>
+    </circle>` : '';
+
+    html += `
+      <g class="bin-marker-group" onclick="selectBin('${b.id}')" style="cursor:pointer">
+        ${pulse}
+        <circle cx="${b.x}" cy="${b.y}" r="18" fill="${color}" opacity="0.9"
+          stroke="${isSelected?'white':'none'}" stroke-width="${isSelected?3:0}"/>
+        <text x="${b.x}" y="${b.y+5}" text-anchor="middle" font-size="16">${bin.emoji}</text>
+        <!-- fullness arc indicator -->
+        <circle cx="${b.x}" cy="${b.y+30}" r="6" fill="white" stroke="${color}" stroke-width="2"/>
+        <text x="${b.x}" y="${b.y+34}" text-anchor="middle" font-size="7" fill="${color}" font-weight="700">${fullPct}%</text>
+        <text x="${b.x}" y="${b.y+48}" text-anchor="middle" font-size="9" fill="rgba(74,32,10,0.6)" font-family="Noto Sans JP" font-weight="700">${bin.loc.split(' ').pop()}</text>
+      </g>
+    `;
+  });
+
+  svg.innerHTML = html;
+}
+
+function showFloor(f) {
+  currentFloor = f;
+  document.querySelectorAll('.floor-tab').forEach((el,i) => {
+    el.classList.toggle('active', i+1 === f);
+  });
+  renderFloor(f);
+}
+
+function selectBin(id) {
+  selectedBin = id;
+  renderFloor(currentFloor);
+  switchTab('stats');
+  renderBinList();
+  // scroll to selected
+  const el = document.querySelector(`[data-bin="${id}"]`);
+  if (el) el.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+// ========== MODE SWITCH ==========
+function setMode(mode) {
+  currentMode = mode;
+  document.getElementById('btn-national').classList.toggle('active', mode==='national');
+  document.getElementById('btn-indoor').classList.toggle('active', mode==='indoor');
+  document.getElementById('leaflet-map').style.display = mode==='national' ? 'block' : 'none';
+  document.getElementById('indoor-map').style.display  = mode==='indoor'   ? 'block' : 'none';
+  document.getElementById('legend-size').style.display = mode==='national' ? 'flex' : 'none';
+
+  if (mode === 'indoor') {
+    renderFloor(currentFloor);
+    if (leafletMap) leafletMap.getContainer().style.display = 'none';
+  } else {
+    if (leafletMap) {
+      leafletMap.getContainer().style.display = 'block';
+      setTimeout(() => leafletMap.invalidateSize(), 50);
+    }
+  }
+}
+
+// ========== TAB SWITCH ==========
+function switchTab(tab) {
+  currentTab = tab;
+  ['ranking','stats','connect'].forEach(t => {
+    document.getElementById('tab-'+t).style.display = t===tab ? 'block' : 'none';
+  });
+  document.querySelectorAll('.sb-tab').forEach((el,i) => {
+    el.classList.toggle('active', ['ranking','stats','connect'][i] === tab);
+  });
+}
+
+// ========== RENDER SIDEBAR ==========
+function renderCatBars() {
+  const catTotals = {};
+  ['choco','gum','candy'].forEach(c => {
+    catTotals[c] = SCHOOLS.reduce((s,sc)=>s+sc[c],0) + demoTotals[c];
+  });
+  const maxCat = Math.max(...Object.values(catTotals));
+
+  document.getElementById('cat-bars').innerHTML = ['choco','gum','candy'].map(c => {
+    const val = catTotals[c];
+    const pct = (val/maxCat*100).toFixed(0);
+    const kg = (val/1000).toFixed(2);
+    return `
+      <div class="cat-row">
+        <div class="cat-icon">${c==='choco'?'🍫':c==='gum'?'🟡':'🍬'}</div>
+        <div class="cat-info">
+          <div class="cat-name">${CAT_NAMES[c]}</div>
+          <div class="cat-track">
+            <div class="cat-fill" style="width:${pct}%;background:${CAT_COLORS[c]}"></div>
+          </div>
+          <div class="cat-nums">
+            <span style="color:${CAT_COLORS[c]};font-weight:700">${kg}kg</span>
+            <span>${val.toLocaleString()}g</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderRanking() {
+  const sorted = [...SCHOOLS].sort((a,b) => schoolTotal(b)-schoolTotal(a));
+  const medals = ['🥇','🥈','🥉'];
+  document.getElementById('rank-list').innerHTML = sorted.map((s,i) => `
+    <div class="rank-item ${s.mine?'mine':''}" onclick="focusSchool(${s.id})">
+      ${s.mine ? '<div class="mine-tag">自校</div>' : ''}
+      <div class="rank-medal">${i<3?medals[i]:`<span style="font-size:13px;color:rgba(44,21,8,0.35);font-weight:700">${i+1}</span>`}</div>
+      <div class="rank-body">
+        <div class="rank-school">${s.name}</div>
+        <div class="rank-pref">${s.pref}</div>
+      </div>
+      <div class="rank-right">
+        <div class="rank-val">${(schoolTotal(s)/1000).toFixed(2)}</div>
+        <div class="rank-unit">kg</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderBinList() {
+  document.getElementById('bin-list').innerHTML = BINS.map(b => {
+    const color = CAT_COLORS[b.cat];
+    const isSelected = selectedBin === b.id;
+    const fullColor = b.fullness > 80 ? '#C8102E' : b.fullness > 50 ? '#D4A017' : '#43A047';
+    return `
+      <div class="bin-card ${isSelected?'selected':''}" data-bin="${b.id}" onclick="selectBin('${b.id}')">
+        <div class="bin-top">
+          <div class="bin-icon">${b.emoji}</div>
+          <div>
+            <div class="bin-name">${b.loc}</div>
+            <div class="bin-floor" style="color:${color}">${CAT_NAMES[b.cat]}</div>
+          </div>
+        </div>
+        <div class="bin-metrics">
+          <div class="bin-metric">
+            <div class="bin-metric-val ${b.cat}">${b.weight}g</div>
+            <div class="bin-metric-label">重量</div>
+          </div>
+          <div class="bin-metric">
+            <div class="bin-metric-val ${b.cat}">${b.count}回</div>
+            <div class="bin-metric-label">回収回数</div>
+          </div>
+          <div class="bin-metric">
+            <div class="bin-metric-val" style="color:${fullColor}">${b.fullness}%</div>
+            <div class="bin-metric-label">満杯度</div>
+          </div>
+        </div>
+        <div class="fullness-bar">
+          <div class="fullness-fill" style="width:${b.fullness}%;background:${fullColor}"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderNationalTotals() {
+  const total = SCHOOLS.reduce((s,sc)=>s+schoolTotal(sc),0) + Object.values(demoTotals).reduce((a,b)=>a+b,0);
+  document.getElementById('nt-total').textContent = (total/1000).toFixed(1);
+  document.getElementById('nt-today').textContent = demoToday;
+  document.getElementById('nt-schools').textContent = SCHOOLS.length;
+}
+
+function focusSchool(id) {
+  const s = SCHOOLS.find(x=>x.id===id);
+  if (!s || currentMode !== 'national') return;
+  leafletMap.flyTo([s.lat, s.lng], 10, {duration:1.2});
+  openSchoolPopup(s, markers[id]);
+}
+
+// ========== UPDATE MARKERS ==========
+function updateMarkers() {
+  SCHOOLS.forEach(s => {
+    if (!markers[s.id]) return;
+    const r = markerRadius(s);
+    const total = schoolTotal(s);
+    const dominant = ['choco','gum','candy'].sort((a,b)=>s[b]-s[a])[0];
+    const color = CAT_COLORS[dominant];
+    const html = `
+      <div style="
+        width:${r*2}px; height:${r*2}px;
+        background:${color}DD;
+        border:${s.mine?'3px solid white':'2px solid '+color+'99'};
+        border-radius:50%;
+        display:flex; align-items:center; justify-content:center;
+        box-shadow:0 2px 8px ${color}66;
+        font-family:'Orbitron',monospace;
+        font-size:${r>24?11:9}px; font-weight:700; color:white;
+        cursor:pointer;
+      ">${(total/1000).toFixed(2)}kg</div>
+    `;
+    const icon = L.divIcon({ html, className:'', iconSize:[r*2,r*2], iconAnchor:[r,r] });
+    markers[s.id].setIcon(icon);
+  });
+}
+
+// ========== DEMO SIMULATION ==========
+let demoInterval;
+function startDemo() {
+  demoInterval = setInterval(() => {
+    // Random school + category gets a detection
+    const s = SCHOOLS[Math.floor(Math.random()*SCHOOLS.length)];
+    const cats = ['choco','gum','candy'];
+    const cat = cats[Math.floor(Math.random()*cats.length)];
+    const grams = Math.floor(Math.random()*80)+20;
+
+    s[cat] += grams;
+    demoTotals[cat] += grams;
+    demoToday++;
+
+    // Random bin
+    const bin = BINS[Math.floor(Math.random()*BINS.length)];
+    bin.weight += grams;
+    bin.count++;
+    bin.fullness = Math.min(99, bin.fullness + Math.floor(Math.random()*3)+1);
+
+    // Log
+    const n = new Date();
+    const ts = [n.getHours(),n.getMinutes(),n.getSeconds()].map(v=>String(v).padStart(2,'0')).join(':');
+    const logEl = document.getElementById('demo-log');
+    logLines.unshift(`${ts}  ${s.name}  ${CAT_NAMES[cat]}  +${grams}g`);
+    if (logLines.length > 30) logLines.pop();
+    logEl.innerHTML = logLines.join('<br>');
+
+    // Update UI
+    renderNationalTotals();
+    renderCatBars();
+    renderRanking();
+    renderBinList();
+    updateMarkers();
+    if (currentMode === 'indoor') renderFloor(currentFloor);
+
+  }, 2200);
+}
+
+// ========== INIT ==========
+window.addEventListener('load', () => {
+  initLeaflet();
+  renderCatBars();
+  renderRanking();
+  renderBinList();
+  renderNationalTotals();
+  startDemo();
+
+  // Default: show national
+  setMode('national');
+});
+</script>
+</body>
+</html>
